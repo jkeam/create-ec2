@@ -1,0 +1,63 @@
+---
+- name: Create EC2 instance
+  hosts: localhost
+  vars_files:
+    - secrets.yml
+  gather_facts: false
+  tasks:
+  - name: Get Info Block
+    block:
+      - name: Get Running Instance Info
+        amazon.aws.ec2_instance_info:
+        register: ec2info
+      - name: Print info
+        debug: var="ec2info.instances"
+    tags: ['always', 'info-only']
+  - name: Create EC2
+    block:
+      - name: Launch EC2 instances
+        tags: create_ec2
+        amazon.aws.ec2_instance:
+          name: my-instance
+          key_name: my-key
+          region: us-east-1
+          instance_type: t2.nano
+          image_id: ami-09d3b3274b6c5d4aa
+          vpc_subnet_id: my-subnet
+          security_groups:
+            - my-security-group
+          network:
+            assign_public_ip: true
+          state: running
+          wait: yes
+          wait_timeout: 600
+          tags:
+            author: me
+            purpose: create-ec2
+            project: my-project
+        register: ec2
+        delegate_to: localhost
+      - name : Add instance to host group
+        add_host:
+          hostname: "{{ item.public_ip_address }}"
+          groupname: launched
+        loop: "{{ ec2.instances }}"
+      - name: Wait for SSH to come up
+        local_action:
+          module: wait_for
+          host: "{{ item.public_ip_address }}"
+          port: 22
+          delay: 10
+          timeout: 120
+        loop: "{{ ec2.instances }}"
+    tags: ['never', 'ec2-create']
+
+  - name: Destroy EC2
+    block:
+      - name: Terminate instances
+        tags: terminate_ec2
+        amazon.aws.ec2_instance:
+          state: absent
+          filters:
+            instance-id: i-my-instance-id
+    tags: ['never', 'ec2-terminate']
