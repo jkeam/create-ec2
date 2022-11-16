@@ -1,0 +1,9 @@
+instance_name: my-instance
+key_name: my-key
+region: us-east-1
+instance_type: t2.micro
+image_id: ami-myami
+subnet_id: subnet-mysubnet
+security_groups:
+  - sg-mysg
+instance_id_to_delete: i-myinstancetodelete
